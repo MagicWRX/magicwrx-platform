@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "default": "magic-wrx",
+    "magic-wrx-firebase": "magic-wrx"
+  },
+  "targets": {},
+  "etags": {}
+}
