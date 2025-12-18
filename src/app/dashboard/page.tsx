@@ -1,78 +1,91 @@
 'use client'
 
-import { useAuthState } from '@/hooks/useAuth'
-import { useState, useEffect } from 'react'
-import { db } from '@/lib/firebase'
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore'
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 
 interface Site {
   id: string
-  name: string
+  title: string
   domain: string
-  isPublished: boolean
-  publishedAt?: Date
-  analytics: {
+  plan: string
+  created_at: string
+  // Mocking analytics for now as they are in a separate table
+  analytics?: {
     pageViews: number
     uniqueVisitors: number
   }
 }
 
 interface UserData {
-  subscription: {
-    tier: 'free' | 'basic' | 'pro' | 'enterprise'
-    status: 'active' | 'cancelled' | 'past_due'
-  }
-  usage: {
-    sites: number
-    bandwidth: number
-    storage: number
-  }
+  plan: string
+  display_name: string
 }
 
 export default function DashboardPage() {
-  const { user, loading } = useAuthState()
+  const { user, loading, supabase } = useSupabaseAuth()
   const [sites, setSites] = useState<Site[]>([])
   const [userData, setUserData] = useState<UserData | null>(null)
   const [loadingData, setLoadingData] = useState(true)
+
+  const fetchUserData = useCallback(async () => {
+    if (!user) return
+    
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+
+      if (error) {
+        console.error('Error fetching user data:', error)
+        return
+      }
+
+      if (data) {
+        setUserData(data as UserData)
+      }
+    } catch (error) {
+      console.error('Error fetching user data:', error)
+    }
+  }, [user, supabase])
+
+  const fetchUserSites = useCallback(async () => {
+    if (!user) return
+    
+    try {
+      const { data, error } = await supabase
+        .from('sites')
+        .select('*')
+        .eq('owner_id', user.id)
+
+      if (error) {
+        console.error('Error fetching sites:', error)
+        return
+      }
+
+      if (data) {
+        // Transform data to match interface if needed
+        const sitesData = data.map(site => ({
+          ...site,
+          analytics: { pageViews: 0, uniqueVisitors: 0 } // Placeholder
+        })) as Site[]
+        setSites(sitesData)
+      }
+    } catch (error) {
+      console.error('Error fetching sites:', error)
+    } finally {
+      setLoadingData(false)
+    }
+  }, [user, supabase])
 
   useEffect(() => {
     if (user) {
       fetchUserData()
       fetchUserSites()
     }
-  }, [user])
-
-  const fetchUserData = async () => {
-    if (!user || !db) return
-    
-    try {
-      const userDoc = await getDoc(doc(db, 'users', user.uid))
-      if (userDoc.exists()) {
-        setUserData(userDoc.data() as UserData)
-      }
-    } catch (error) {
-      console.error('Error fetching user data:', error)
-    }
-  }
-
-  const fetchUserSites = async () => {
-    if (!user || !db) return
-    
-    try {
-      const sitesQuery = query(collection(db, 'sites'), where('userId', '==', user.uid))
-      const sitesSnapshot = await getDocs(sitesQuery)
-      const sitesData = sitesSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Site[]
-      setSites(sitesData)
-    } catch (error) {
-      console.error('Error fetching sites:', error)
-    } finally {
-      setLoadingData(false)
-    }
-  }
+  }, [user, fetchUserData, fetchUserSites])
 
   if (loading || loadingData) {
     return (
@@ -115,13 +128,13 @@ export default function DashboardPage() {
         <div className="flex justify-between items-center">
           <div>
             <h2 className="text-xl font-semibold capitalize">
-              {userData?.subscription?.tier || 'free'} Plan
+              {userData?.plan || 'free'} Plan
             </h2>
             <p className="text-gray-600">
-              Status: {userData?.subscription?.status === 'active' ? 'Active' : 'Inactive'}
+              Status: Active
             </p>
           </div>
-          {userData?.subscription?.tier === 'free' && (
+          {userData?.plan === 'free' && (
             <Link
               href="/pricing"
               className="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition-colors"
@@ -162,7 +175,7 @@ export default function DashboardPage() {
             <div>
               <p className="text-sm font-medium text-gray-600">Published Sites</p>
               <p className="text-2xl font-bold">
-                {sites.filter(site => site.isPublished).length}
+                {sites.length}
               </p>
             </div>
           </div>
@@ -200,13 +213,9 @@ export default function DashboardPage() {
             {sites.slice(0, 6).map((site) => (
               <div key={site.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                 <div className="flex justify-between items-start mb-3">
-                  <h3 className="font-semibold text-lg">{site.name}</h3>
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    site.isPublished 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    {site.isPublished ? 'Published' : 'Draft'}
+                  <h3 className="font-semibold text-lg">{site.title}</h3>
+                  <span className="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
+                    Published
                   </span>
                 </div>
                 
@@ -267,4 +276,4 @@ export default function DashboardPage() {
       </div>
     </div>
   )
-} 
+}

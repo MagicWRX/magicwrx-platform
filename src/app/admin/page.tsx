@@ -1,15 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useAuthState } from '@/hooks/useAuth'
-import { signOut } from 'firebase/auth'
-import { auth } from '@/lib/firebase'
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import FirebaseStatus from '@/components/FirebaseStatus'
+import SupabaseStatus from '@/components/SupabaseStatus'
 
 export default function AdminPage() {
-  const { user, loading } = useAuthState()
+  const { user, loading, supabase } = useSupabaseAuth()
   const router = useRouter()
   const [stats, setStats] = useState({
     totalUsers: 1234,
@@ -26,9 +24,7 @@ export default function AdminPage() {
 
   const handleSignOut = async () => {
     try {
-      if (auth) {
-        await signOut(auth)
-      }
+      await supabase.auth.signOut()
       router.push('/')
     } catch (error) {
       console.error('Error signing out:', error)
@@ -118,9 +114,9 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Firebase Status */}
+        {/* Supabase Status */}
         <div className="mb-8">
-          <FirebaseStatus />
+          <SupabaseStatus />
         </div>
 
         {/* Dashboard Grid */}
@@ -195,9 +191,9 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* Firebase Status Component */}
+      {/* Supabase Status Component */}
       <div className="fixed bottom-4 right-4 z-50">
-        <FirebaseStatus />
+        <SupabaseStatus />
       </div>
     </div>
   )

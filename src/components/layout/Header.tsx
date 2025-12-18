@@ -2,11 +2,14 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { useAuthState } from '@/hooks/useAuth'
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth'
+import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/button'
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const { user, loading } = useAuthState()
+  const { user, loading, supabase } = useSupabaseAuth()
+  const router = useRouter()
 
   const navigation = [
     { name: 'Home', href: '/' },
@@ -18,8 +21,13 @@ export default function Header() {
     { name: 'Help', href: '/troubleshooting' },
   ]
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    router.refresh()
+  }
+
   return (
-    <header className="bg-white shadow-sm sticky top-0 z-50">
+    <header className="bg-background shadow-sm sticky top-0 z-50 border-b border-border">
       <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8" aria-label="Top">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center">
@@ -34,7 +42,7 @@ export default function Header() {
               <Link
                 key={item.name}
                 href={item.href}
-                className="text-gray-900 hover:text-blue-600 px-3 py-2 text-sm font-medium transition-colors"
+                className="text-foreground hover:text-primary px-3 py-2 text-sm font-medium transition-colors"
               >
                 {item.name}
               </Link>
@@ -44,33 +52,31 @@ export default function Header() {
           {/* Auth buttons */}
           <div className="hidden md:flex md:items-center md:space-x-4">
             {loading ? (
-              <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
             ) : user ? (
               <>
                 <Link
                   href="/admin"
-                  className="text-gray-900 hover:text-blue-600 px-3 py-2 text-sm font-medium"
+                  className="text-foreground hover:text-primary px-3 py-2 text-sm font-medium"
                 >
                   Dashboard
                 </Link>
-                <button className="bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-red-700 transition-colors">
+                <Button 
+                  onClick={handleSignOut}
+                  variant="destructive"
+                  size="sm"
+                >
                   Sign Out
-                </button>
+                </Button>
               </>
             ) : (
               <>
-                <Link
-                  href="/login"
-                  className="text-gray-900 hover:text-blue-600 px-3 py-2 text-sm font-medium"
-                >
-                  Sign In
-                </Link>
-                <Link
-                  href="/signup"
-                  className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
-                >
-                  Sign Up
-                </Link>
+                <Button variant="ghost" asChild>
+                  <Link href="/login">Sign In</Link>
+                </Button>
+                <Button asChild>
+                  <Link href="/signup">Sign Up</Link>
+                </Button>
               </>
             )}
           </div>
@@ -79,7 +85,7 @@ export default function Header() {
           <div className="md:hidden">
             <button
               type="button"
-              className="text-gray-900 hover:text-blue-600"
+              className="text-foreground hover:text-primary"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
             >
               <span className="sr-only">Open main menu</span>
@@ -115,7 +121,13 @@ export default function Header() {
                       >
                         Dashboard
                       </Link>
-                      <button className="block w-full text-left bg-red-600 text-white px-3 py-2 text-base font-medium hover:bg-red-700 transition-colors rounded-md mt-2">
+                      <button 
+                        onClick={() => {
+                          handleSignOut()
+                          setIsMenuOpen(false)
+                        }}
+                        className="block w-full text-left bg-red-600 text-white px-3 py-2 text-base font-medium hover:bg-red-700 transition-colors rounded-md mt-2"
+                      >
                         Sign Out
                       </button>
                     </>

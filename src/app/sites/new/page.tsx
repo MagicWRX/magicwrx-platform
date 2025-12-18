@@ -2,13 +2,11 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { addDoc, collection } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
-import { useAuthState } from '@/hooks/useAuth'
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth'
 
 export default function NewSitePage() {
   const router = useRouter()
-  const { user } = useAuthState()
+  const { user, supabase } = useSupabaseAuth()
   const [siteName, setSiteName] = useState('')
   const [template, setTemplate] = useState('blank')
   const [loading, setLoading] = useState(false)
@@ -23,25 +21,39 @@ export default function NewSitePage() {
 
   const handleCreateSite = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!siteName.trim() || !user || !db) return
+    if (!siteName.trim() || !user) return
 
     setLoading(true)
     try {
-      const siteData = {
-        name: siteName.trim(),
-        userId: user.uid,
-        template,
-        components: [],
-        customization: {},
-        isPublished: false,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
+      // 1. Create Site
+      const { data: siteData, error: siteError } = await supabase
+        .from('sites')
+        .insert({
+          title: siteName.trim(),
+          owner_id: user.id,
+          description: `Template: ${template}`,
+          domain: `${siteName.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-')}.magicwrx.com`
+        })
+        .select()
+        .single()
 
-      const docRef = await addDoc(collection(db, 'sites'), siteData)
-      router.push(`/sites/${docRef.id}/builder`)
+      if (siteError) throw siteError
+
+      // 2. Create Home Page
+      const { error: pageError } = await supabase
+        .from('pages')
+        .insert({
+          site_id: siteData.id,
+          slug: '/',
+          body: { components: [] }
+        })
+
+      if (pageError) throw pageError
+
+      router.push(`/sites/${siteData.id}/builder`)
     } catch (error) {
       console.error('Error creating site:', error)
+      alert('Failed to create site. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -156,4 +168,4 @@ export default function NewSitePage() {
       </div>
     </div>
   )
-} 
+}

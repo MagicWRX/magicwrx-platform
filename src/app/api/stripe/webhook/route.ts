@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
-import { db } from '@/lib/firebase'
-import { doc, updateDoc, setDoc } from 'firebase/firestore'
+import { createClient } from '@supabase/supabase-js'
+
+// Initialize Supabase Admin client
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+const supabaseAdmin = (supabaseUrl && supabaseServiceKey) 
+  ? createClient(supabaseUrl, supabaseServiceKey) 
+  : null
 
 export async function POST(request: NextRequest) {
   const body = await request.text()
@@ -34,6 +41,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: 'Invalid signature' },
       { status: 400 }
+    )
+  }
+
+  if (!supabaseAdmin) {
+     console.error('Supabase Admin not configured')
+     return NextResponse.json(
+      { error: 'Server configuration error' },
+      { status: 500 }
     )
   }
 
@@ -72,87 +87,49 @@ export async function POST(request: NextRequest) {
 }
 
 async function handleCheckoutSessionCompleted(session: any) {
-  const customerEmail = session.customer_details?.email
+  const userId = session.metadata?.userId
   const plan = session.metadata?.plan
 
-  if (customerEmail && plan && db) {
-    // Update user subscription in Firestore
-    const userRef = doc(db, 'users', customerEmail)
-    await updateDoc(userRef, {
-      subscription: {
-        plan,
-        status: 'active',
-        stripeCustomerId: session.customer,
-        stripeSubscriptionId: session.subscription,
-        createdAt: new Date(),
-      },
-    })
+  if (userId && plan && supabaseAdmin) {
+    await supabaseAdmin
+      .from('users')
+      .update({ plan: plan })
+      .eq('id', userId)
   }
 }
 
 async function handleSubscriptionCreated(subscription: any) {
-  const customerEmail = subscription.metadata?.email
+  const userId = subscription.metadata?.userId
   const plan = subscription.metadata?.plan
 
-  if (customerEmail && plan && db) {
-    const userRef = doc(db, 'users', customerEmail)
-    await updateDoc(userRef, {
-      subscription: {
-        plan,
-        status: subscription.status,
-        stripeCustomerId: subscription.customer,
-        stripeSubscriptionId: subscription.id,
-        currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-        createdAt: new Date(),
-      },
-    })
+  if (userId && plan && supabaseAdmin) {
+    await supabaseAdmin
+      .from('users')
+      .update({ plan: plan })
+      .eq('id', userId)
   }
 }
 
 async function handleSubscriptionUpdated(subscription: any) {
-  const customerEmail = subscription.metadata?.email
-
-  if (customerEmail && db) {
-    const userRef = doc(db, 'users', customerEmail)
-    await updateDoc(userRef, {
-      'subscription.status': subscription.status,
-      'subscription.currentPeriodEnd': new Date(subscription.current_period_end * 1000),
-    })
-  }
+  const userId = subscription.metadata?.userId
+  // Logic to update status if we tracked it in public.users
+  // Currently only 'plan' is in schema.
 }
 
 async function handleSubscriptionDeleted(subscription: any) {
-  const customerEmail = subscription.metadata?.email
-
-  if (customerEmail && db) {
-    const userRef = doc(db, 'users', customerEmail)
-    await updateDoc(userRef, {
-      'subscription.status': 'canceled',
-      'subscription.canceledAt': new Date(),
-    })
+  const userId = subscription.metadata?.userId
+  if (userId && supabaseAdmin) {
+    await supabaseAdmin
+      .from('users')
+      .update({ plan: 'free' })
+      .eq('id', userId)
   }
 }
 
 async function handlePaymentSucceeded(invoice: any) {
-  const customerEmail = invoice.customer_email
-
-  if (customerEmail && db) {
-    const userRef = doc(db, 'users', customerEmail)
-    await updateDoc(userRef, {
-      'subscription.lastPaymentDate': new Date(),
-      'subscription.status': 'active',
-    })
-  }
+  // No action needed for now unless we track payment history
 }
 
 async function handlePaymentFailed(invoice: any) {
-  const customerEmail = invoice.customer_email
-
-  if (customerEmail && db) {
-    const userRef = doc(db, 'users', customerEmail)
-    await updateDoc(userRef, {
-      'subscription.status': 'past_due',
-      'subscription.lastPaymentAttempt': new Date(),
-    })
-  }
-} 
+  // Could notify user or downgrade
+}

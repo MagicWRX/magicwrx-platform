@@ -1,9 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { doc, getDoc, updateDoc } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
+import { createClient } from '@/lib/supabase/client'
 import DragDropEditor from '@/components/DragDropEditor'
 import CustomizationPanel from '@/components/CustomizationPanel'
 import { Component } from '@/types/site-builder'
@@ -12,35 +11,59 @@ export default function SiteBuilderPage() {
   const params = useParams()
   const router = useRouter()
   const [site, setSite] = useState<any>(null)
+  const [page, setPage] = useState<any>(null)
   const [selectedComponent, setSelectedComponent] = useState<Component | null>(null)
   const [isPreviewMode, setIsPreviewMode] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const supabase = useMemo(() => createClient(), [])
 
-  useEffect(() => {
-    fetchSiteData()
-  }, [params.id])
-
-  const fetchSiteData = async () => {
-    if (!params.id || !db) return
+  const fetchSiteData = useCallback(async () => {
+    if (!params.id) return
     
     try {
-      const siteDoc = await getDoc(doc(db, 'sites', params.id as string))
-      if (siteDoc.exists()) {
-        const siteData = { id: siteDoc.id, ...siteDoc.data() }
-        setSite(siteData)
-      } else {
+      // Fetch site
+      const { data: siteData, error: siteError } = await supabase
+        .from('sites')
+        .select('*')
+        .eq('id', params.id)
+        .single()
+      
+      if (siteError || !siteData) {
+        console.error('Error fetching site:', siteError)
         router.push('/dashboard')
+        return
       }
+
+      // Fetch home page
+      const { data: pageData, error: pageError } = await supabase
+        .from('pages')
+        .select('*')
+        .eq('site_id', params.id)
+        .eq('slug', '/')
+        .single()
+
+      if (pageError) {
+         console.error('Error fetching page:', pageError)
+      }
+
+      setSite(siteData)
+      setPage(pageData || { body: { components: [] } })
+      
     } catch (error) {
-      console.error('Error fetching site:', error)
+      console.error('Error fetching site data:', error)
     } finally {
       setLoading(false)
     }
-  }
+  }, [params.id, router, supabase])
+
+  useEffect(() => {
+    fetchSiteData()
+  }, [fetchSiteData])
 
   const handleSiteChange = (updatedSite: any) => {
-    setSite(updatedSite)
+    const components = updatedSite.components
+    setPage({ ...page, body: { ...page.body, components } })
   }
 
   const handleComponentSelect = (component: Component | null) => {
@@ -48,22 +71,24 @@ export default function SiteBuilderPage() {
   }
 
   const handleComponentUpdate = (componentId: string, updates: Partial<Component>) => {
-    if (!site) return
+    if (!page) return
 
-    const updatedComponents = site.components?.map((comp: Component) => 
+    const currentComponents = page.body?.components || []
+    const updatedComponents = currentComponents.map((comp: Component) => 
       comp.id === componentId ? { ...comp, ...updates } : comp
-    ) || []
+    )
 
-    const updatedSite = { ...site, components: updatedComponents }
-    setSite(updatedSite)
+    const updatedPage = { ...page, body: { ...page.body, components: updatedComponents } }
+    setPage(updatedPage)
   }
 
   const handleDeleteComponent = (componentId: string) => {
-    if (!site) return
+    if (!page) return
 
-    const updatedComponents = site.components?.filter((comp: Component) => comp.id !== componentId) || []
-    const updatedSite = { ...site, components: updatedComponents }
-    setSite(updatedSite)
+    const currentComponents = page.body?.components || []
+    const updatedComponents = currentComponents.filter((comp: Component) => comp.id !== componentId)
+    const updatedPage = { ...page, body: { ...page.body, components: updatedComponents } }
+    setPage(updatedPage)
     
     if (selectedComponent?.id === componentId) {
       setSelectedComponent(null)
@@ -71,15 +96,27 @@ export default function SiteBuilderPage() {
   }
 
   const handleSave = async () => {
-    if (!site || !db) return
+    if (!site || !page) return
     
     setSaving(true)
     try {
-      await updateDoc(doc(db, 'sites', site.id), {
-        components: site.components,
-        customization: site.customization,
-        updatedAt: new Date()
-      })
+      // Update page
+      const { error: pageError } = await supabase
+        .from('pages')
+        .update({
+          body: page.body,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', page.id)
+
+      if (pageError) throw pageError
+
+      // Update site timestamp
+      await supabase
+        .from('sites')
+        .update({ created_at: site.created_at }) // Just touching the row? Schema doesn't have updated_at for sites.
+        .eq('id', site.id)
+
       console.log('Site saved successfully!')
     } catch (error) {
       console.error('Error saving site:', error)
@@ -89,26 +126,24 @@ export default function SiteBuilderPage() {
   }
 
   const handlePublish = async () => {
-    if (!site || !db) return
-    
-    setSaving(true)
-    try {
-      await updateDoc(doc(db, 'sites', site.id), {
-        isPublished: true,
-        publishedAt: new Date(),
-        components: site.components,
-        customization: site.customization
-      })
-      console.log('Site published successfully!')
-    } catch (error) {
-      console.error('Error publishing site:', error)
-    } finally {
-      setSaving(false)
-    }
+    handleSave()
+    alert('Published! (Mock)')
   }
 
   const handlePreview = () => {
     setIsPreviewMode(!isPreviewMode)
+  }
+
+  const addComponent = (type: string, content: any) => {
+    const newComponent = {
+      id: `component-${Date.now()}`,
+      type,
+      content,
+      position: { x: 0, y: 0 }
+    }
+    const currentComponents = page?.body?.components || []
+    const updatedPage = { ...page, body: { ...page.body, components: [...currentComponents, newComponent] } }
+    setPage(updatedPage)
   }
 
   if (loading) {
@@ -135,15 +170,18 @@ export default function SiteBuilderPage() {
     )
   }
 
+  // Construct a site-like object for DragDropEditor if it expects components at root
+  const siteForEditor = { ...site, components: page?.body?.components || [] }
+
   return (
     <div className="h-screen flex flex-col">
       {/* Toolbar */}
       <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
         <div className="flex items-center space-x-4">
-          <h1 className="text-lg font-semibold">{site.name}</h1>
+          <h1 className="text-lg font-semibold">{site.title}</h1>
           <span className="text-sm text-gray-500">•</span>
           <span className="text-sm text-gray-500">
-            {site.isPublished ? 'Published' : 'Draft'}
+            Draft
           </span>
         </div>
         
@@ -169,10 +207,10 @@ export default function SiteBuilderPage() {
           
           <button
             onClick={handlePublish}
-            disabled={saving || site.isPublished}
+            disabled={saving}
             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {saving ? 'Publishing...' : site.isPublished ? 'Published' : 'Publish'}
+            {saving ? 'Publishing...' : 'Publish'}
           </button>
         </div>
       </div>
@@ -191,7 +229,7 @@ export default function SiteBuilderPage() {
                 
                 {/* Preview Content */}
                 <div className="space-y-4">
-                  {site.components?.map((component: Component) => (
+                  {page?.body?.components?.map((component: Component) => (
                     <div key={component.id} className="border border-gray-200 rounded-lg p-4">
                       <h3 className="font-semibold mb-2">{component.type.charAt(0).toUpperCase() + component.type.slice(1)}</h3>
                       <div className="text-sm text-gray-600">
@@ -232,15 +270,7 @@ export default function SiteBuilderPage() {
               <h3 className="text-lg font-semibold mb-4">Components</h3>
               <div className="space-y-2">
                 <button
-                  onClick={() => handleSiteChange({
-                    ...site,
-                    components: [...(site.components || []), {
-                      id: `component-${Date.now()}`,
-                      type: 'header',
-                      content: { title: 'New Header', subtitle: 'Add your subtitle here' },
-                      position: { x: 0, y: 0 }
-                    }]
-                  })}
+                  onClick={() => addComponent('header', { title: 'New Header', subtitle: 'Add your subtitle here' })}
                   className="w-full p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 text-left"
                 >
                   <div className="font-medium">Header</div>
@@ -248,15 +278,7 @@ export default function SiteBuilderPage() {
                 </button>
                 
                 <button
-                  onClick={() => handleSiteChange({
-                    ...site,
-                    components: [...(site.components || []), {
-                      id: `component-${Date.now()}`,
-                      type: 'text',
-                      content: { text: 'Add your text content here' },
-                      position: { x: 0, y: 0 }
-                    }]
-                  })}
+                  onClick={() => addComponent('text', { text: 'Add your text content here' })}
                   className="w-full p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 text-left"
                 >
                   <div className="font-medium">Text</div>
@@ -264,15 +286,7 @@ export default function SiteBuilderPage() {
                 </button>
                 
                 <button
-                  onClick={() => handleSiteChange({
-                    ...site,
-                    components: [...(site.components || []), {
-                      id: `component-${Date.now()}`,
-                      type: 'image',
-                      content: { url: '', alt: 'Image description' },
-                      position: { x: 0, y: 0 }
-                    }]
-                  })}
+                  onClick={() => addComponent('image', { url: '', alt: 'Image description' })}
                   className="w-full p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 text-left"
                 >
                   <div className="font-medium">Image</div>
@@ -280,15 +294,7 @@ export default function SiteBuilderPage() {
                 </button>
                 
                 <button
-                  onClick={() => handleSiteChange({
-                    ...site,
-                    components: [...(site.components || []), {
-                      id: `component-${Date.now()}`,
-                      type: 'button',
-                      content: { text: 'Click me', link: '#' },
-                      position: { x: 0, y: 0 }
-                    }]
-                  })}
+                  onClick={() => addComponent('button', { text: 'Click me', link: '#' })}
                   className="w-full p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 text-left"
                 >
                   <div className="font-medium">Button</div>
@@ -300,7 +306,7 @@ export default function SiteBuilderPage() {
             {/* Canvas */}
             <div className="flex-1 bg-white p-8">
               <DragDropEditor
-                site={site}
+                site={siteForEditor}
                 onSiteChange={handleSiteChange}
                 onComponentSelect={handleComponentSelect}
                 selectedComponent={selectedComponent}
@@ -322,4 +328,4 @@ export default function SiteBuilderPage() {
       </div>
     </div>
   )
-} 
+}

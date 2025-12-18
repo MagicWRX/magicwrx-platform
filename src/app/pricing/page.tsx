@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import PaymentButton from '@/components/PaymentButton'
+import PaymentButton from '@/components/features/marketing/PaymentButton'
 
 export default function PricingPage() {
   const plans = [

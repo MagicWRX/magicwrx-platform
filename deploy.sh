@@ -3,8 +3,8 @@
 # Exit on any error
 set -e
 
-echo "🚀 MagicWRX Firebase Deployment Script"
-echo "======================================"
+echo "🚀 MagicWRX Vercel Deployment Script"
+echo "===================================="
 echo ""
 
 # Colors for output
@@ -40,48 +40,44 @@ handle_error() {
 # Set error trap
 trap 'handle_error $LINENO' ERR
 
-# Check if logged into correct Firebase account
-echo "📋 Checking Firebase account..."
-CURRENT_USER=$(firebase login:list 2>/dev/null | grep "magicwrxstudio@gmail.com" || echo "")
-
-if [ -z "$CURRENT_USER" ]; then
-    print_warning "You need to login to Firebase with MagicWRXStudio@gmail.com"
-    echo "   Run: ./firebase-switch.sh"
-    echo "   Select option 2 to login as MagicWRXStudio@gmail.com"
-    exit 1
-fi
-print_success "Logged in as MagicWRXStudio@gmail.com"
-
-# Check if Firebase project exists
-echo "🔍 Checking Firebase project..."
-if ! firebase projects:list | grep -q "magic-wrx"; then
-    print_error "Firebase project 'magic-wrx' not found"
-    echo "   Please create the project at https://console.firebase.google.com"
-    echo "   Or update .firebaserc with the correct project ID"
-    exit 1
-fi
-print_success "Firebase project 'magic-wrx' found"
-
-# Check current project
-echo "🏗️  Checking current project..."
-CURRENT_PROJECT=$(firebase use 2>/dev/null | grep "magic-wrx" || echo "")
-
-if [ -z "$CURRENT_PROJECT" ]; then
-    print_warning "Not using magic-wrx project"
-    echo "Switching to magic-wrx project..."
-    if ! firebase use magic-wrx; then
-        print_error "Failed to switch to magic-wrx project"
-        exit 1
-    fi
-fi
-print_success "Using magic-wrx project"
-
-# Check authentication configuration
-echo "🔐 Checking authentication configuration..."
-if grep -q "GoogleAuthProvider" src/app/login/page.tsx; then
-    print_success "Google authentication is configured"
+# Check if Vercel CLI is installed
+echo "📋 Checking Vercel CLI..."
+if ! command -v vercel &> /dev/null; then
+    print_warning "Vercel CLI not found. Installing..."
+    npm install -g vercel
+    print_success "Vercel CLI installed"
 else
-    print_warning "Google authentication may not be configured"
+    print_success "Vercel CLI found"
+fi
+
+# Check if logged into Vercel
+echo "🔐 Checking Vercel authentication..."
+if ! vercel whoami &> /dev/null; then
+    print_warning "Not logged into Vercel"
+    echo "Please login to Vercel:"
+    vercel login
+else
+    print_success "Logged into Vercel"
+fi
+
+# Check if project is linked to Vercel
+echo "🔗 Checking Vercel project link..."
+if [ ! -f ".vercel/project.json" ]; then
+    print_warning "Project not linked to Vercel"
+    echo "Linking project to Vercel..."
+    vercel link
+else
+    print_success "Project linked to Vercel"
+fi
+
+# Check environment variables
+echo "🔧 Checking environment variables..."
+if [ -f ".env.local" ]; then
+    print_success "Local environment file found"
+    print_info "Make sure to set up environment variables in Vercel dashboard"
+else
+    print_warning "No .env.local found"
+    print_info "Create .env.local with your environment variables"
 fi
 
 # Build the project
@@ -93,24 +89,31 @@ if ! npm run build; then
 fi
 print_success "Build completed successfully"
 
-# Deploy to Firebase
-echo "☁️  Deploying to Firebase Hosting..."
-if firebase deploy; then
+# Deploy to Vercel
+echo "☁️  Deploying to Vercel..."
+print_warning "Note: If deployment fails due to missing environment variables,"
+print_warning "run: ./setup-vercel-env.sh to set them up"
+echo ""
+
+if vercel --prod; then
     print_success "Deployment successful!"
     echo ""
-    echo "🌐 Your site is live at: https://magic-wrx.web.app"
+    print_info "Your site is now live on Vercel!"
     echo ""
-    echo "📋 Authentication URLs:"
-    echo "   Login: https://magic-wrx.web.app/login"
-    echo "   Signup: https://magic-wrx.web.app/signup"
-    echo "   Demo: https://magic-wrx.web.app/demo-login"
+    print_info "Next steps:"
+    echo "   1. Set up environment variables in Vercel dashboard"
+    echo "   2. Configure custom domain if needed"
+    echo "   3. Set up automatic deployments from GitHub"
     echo ""
-    echo "🔧 Firebase Console:"
-    echo "   https://console.firebase.google.com/project/magic-wrx"
-    echo ""
-    print_info "Don't forget to configure Google Auth in Firebase Console!"
+    print_info "Vercel Dashboard: https://vercel.com/dashboard"
 else
     print_error "Deployment failed"
-    echo "Check Firebase console for errors"
+    echo ""
+    print_info "Common issues:"
+    echo "   1. Missing environment variables - run: ./setup-vercel-env.sh"
+    echo "   2. Build errors - check the logs above"
+    echo "   3. Authentication issues - run: vercel login"
+    echo ""
+    print_info "Check Vercel dashboard for detailed error logs"
     exit 1
-fi
+fi 

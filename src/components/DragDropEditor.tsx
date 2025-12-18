@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import Image from 'next/image'
 import {
   DndContext,
   closestCenter,
@@ -224,10 +225,12 @@ function SortableComponent({
       case 'image':
         return (
           <div style={{ ...component.styles, ...style }} className={`component ${isSelected ? 'selected' : ''}`}>
-            <img 
+            <Image 
               src={component.content.src} 
               alt={component.content.alt}
               style={component.styles}
+              width={800}
+              height={600}
             />
             {component.content.caption && (
               <p className="text-sm text-gray-600 mt-2">{component.content.caption}</p>
@@ -240,11 +243,13 @@ function SortableComponent({
           <div style={{ ...component.styles, ...style }} className={`component ${isSelected ? 'selected' : ''}`}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {component.content.images.map((image: any, index: number) => (
-                <img 
+                <Image 
                   key={index}
                   src={image.src} 
                   alt={image.alt}
                   className="w-full h-48 object-cover rounded-lg"
+                  width={400}
+                  height={300}
                 />
               ))}
             </div>

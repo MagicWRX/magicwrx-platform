@@ -3,8 +3,7 @@
 import { useAdminAuth } from '@/hooks/useAdminAuth'
 import { useControlGuideData, executeHealthCheck, executeDeployment } from '@/hooks/useControlGuide'
 import { useState, useEffect } from 'react'
-import { signOut } from 'firebase/auth'
-import { auth } from '@/lib/firebase'
+import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
@@ -15,6 +14,7 @@ export default function AdminControlGuidePage() {
   const [activeSection, setActiveSection] = useState('overview')
   const [executingCommand, setExecutingCommand] = useState<string | null>(null)
   const [commandResult, setCommandResult] = useState<string | null>(null)
+  const supabase = createClient()
 
   const executeCommand = async (command: string, type: 'health-check' | 'deployment') => {
     setExecutingCommand(command)
@@ -41,9 +41,7 @@ export default function AdminControlGuidePage() {
 
   const handleSignOut = async () => {
     try {
-      if (auth) {
-        await signOut(auth)
-      }
+      await supabase.auth.signOut()
       router.push('/')
     } catch (error) {
       console.error('Error signing out:', error)
@@ -181,7 +179,7 @@ export default function AdminControlGuidePage() {
                             </div>
                             <div className="flex justify-between">
                               <span>Resend</span>
-                              <span className="text-green-400">🟢 Active</span>
+                              <span className="text-green-400">�� Active</span>
                             </div>
                             <div className="flex justify-between">
                               <span>GitHub</span>

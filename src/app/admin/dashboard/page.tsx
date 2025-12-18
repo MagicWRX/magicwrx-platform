@@ -1,12 +1,14 @@
 'use client'
 import { useAdminAuth } from '@/hooks/useAdminAuth'
-import { auth } from '@/lib/firebase'
-import { signOut } from 'firebase/auth'
+import { createClient } from '@/lib/supabase/client'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 export default function AdminDashboardPage() {
   const { user, loading } = useAdminAuth()
   const [error, setError] = useState('')
+  const supabase = createClient()
+  const router = useRouter()
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center bg-black text-white">Loading...</div>
@@ -14,12 +16,10 @@ export default function AdminDashboardPage() {
 
   const handleLogout = async () => {
     setError('')
-    if (!auth) {
-      setError('Authentication is not available. Please try again later.')
-      return
-    }
     try {
-      await signOut(auth)
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
+      router.push('/admin/login')
     } catch (err: any) {
       setError(err.message)
     }
@@ -60,4 +60,4 @@ export default function AdminDashboardPage() {
       </main>
     </div>
   )
-} 
+}

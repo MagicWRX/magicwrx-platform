@@ -20,8 +20,7 @@
 | Service | Purpose | Environment | Status Dashboard |
 |---------|---------|-------------|------------------|
 | **Vercel** | Frontend Hosting | Production | [vercel.com/dashboard](https://vercel.com/dashboard) |
-| **Firebase** | Backend/Auth/DB | Production | [console.firebase.google.com](https://console.firebase.google.com) |
-| **Supabase** | Database/Auth | Production | [supabase.com/dashboard](https://supabase.com/dashboard) |
+| **Supabase** | Backend/Auth/DB | Production | [supabase.com/dashboard](https://supabase.com/dashboard) |
 | **Stripe** | Payments | Production | [dashboard.stripe.com](https://dashboard.stripe.com) |
 | **Resend** | Email Service | Production | [resend.com/dashboard](https://resend.com/dashboard) |
 | **GitHub** | Source Control | Repository | [github.com/MagicWRX/MagicWRX](https://github.com/MagicWRX/MagicWRX) |
@@ -29,11 +28,8 @@
 ### **Project URLs**
 - **Production**: `https://magic-g7ua1cnfl-magicwrxs-projects.vercel.app`
 - **Development**: `http://localhost:3000`
-- **Admin Panel**: `/admin/login`
-- **API Endpoints**: `/api/*`
-
----
-
+- **Admin Panel**: `/admin`
+- **API Endpoints**
 ## 🔐 **Environment Management**
 
 ### **Environment Files Location**
@@ -44,17 +40,6 @@
 
 ### **Critical Environment Variables**
 
-#### **Firebase Configuration**
-```bash
-NEXT_PUBLIC_FIREBASE_API_KEY="AIzaSyBHy6eur9Ux9-tfhybSHROXL6hbz8Vvjd4"
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="magic-wrx.firebaseapp.com"
-NEXT_PUBLIC_FIREBASE_PROJECT_ID="magic-wrx"
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET="magic-wrx.firebasestorage.app"
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID="24629615626"
-NEXT_PUBLIC_FIREBASE_APP_ID="1:24629615626:web:f9d4d0fac5f709b996d3f3"
-NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID="G-RJEJT2JT5T"
-```
-
 #### **Supabase Configuration**
 ```bash
 NEXT_PUBLIC_SUPABASE_URL="https://ujfcflnrtrkdgfclwelz.supabase.co"
@@ -64,6 +49,13 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 #### **Email Service (Resend)**
 ```bash
 RESEND_API_KEY="re_CgegqT2Q_K3yY7kJobarR5qDiMgfX24qg"
+```
+
+#### **Firebase Configuration (Deprecated)**
+```bash
+# These variables are deprecated and will be removed
+NEXT_PUBLIC_FIREBASE_API_KEY="..."
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="..."
 ```
 
 ---

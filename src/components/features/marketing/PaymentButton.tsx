@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { getStripe } from '@/lib/stripe'
-import { useAuthState } from '@/hooks/useAuth'
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth'
+import { Button } from '@/components/ui/button'
 
 interface PaymentButtonProps {
   priceId: string
@@ -18,7 +19,7 @@ export default function PaymentButton({
   children 
 }: PaymentButtonProps) {
   const [loading, setLoading] = useState(false)
-  const { user } = useAuthState()
+  const { user } = useSupabaseAuth()
 
   const handleCheckout = async () => {
     if (!user) {
@@ -67,14 +68,13 @@ export default function PaymentButton({
   }
 
   return (
-    <button
+    <Button
       onClick={handleCheckout}
       disabled={loading}
-      className={`${className} ${
-        loading ? 'opacity-50 cursor-not-allowed' : ''
-      }`}
+      className={className}
     >
       {loading ? 'Processing...' : children}
-    </button>
+    </Button>
   )
-} 
+}
+ 

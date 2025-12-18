@@ -1,8 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { auth } from '@/lib/firebase'
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
+import { createClient } from '@/lib/supabase/client'
 
 export default function AdminLoginPage() {
   const router = useRouter()
@@ -10,18 +9,19 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const supabase = createClient()
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
-    if (!auth) {
-      setError('Authentication is not available. Please try again later.')
-      setLoading(false)
-      return
-    }
+    
     try {
-      await signInWithEmailAndPassword(auth, email, password)
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+      if (error) throw error
       router.push('/admin/dashboard')
     } catch (err: any) {
       setError(err.message)
@@ -33,18 +33,18 @@ export default function AdminLoginPage() {
   const handleGoogleLogin = async () => {
     setLoading(true)
     setError('')
-    if (!auth) {
-      setError('Authentication is not available. Please try again later.')
-      setLoading(false)
-      return
-    }
+    
     try {
-      const provider = new GoogleAuthProvider()
-      await signInWithPopup(auth, provider)
-      router.push('/admin/dashboard')
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+      if (error) throw error
+      // Note: OAuth redirect will happen, so we might not reach here
     } catch (err: any) {
       setError(err.message)
-    } finally {
       setLoading(false)
     }
   }
@@ -90,4 +90,4 @@ export default function AdminLoginPage() {
       </div>
     </div>
   )
-} 
+}
