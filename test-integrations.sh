@@ -4,7 +4,7 @@
 echo "💳 Testing Stripe Integration"
 echo "============================="
 
-BASE_URL="http://localhost:3000"
+BASE_URL="http://localhost:3002"
 
 # Test if Stripe is loaded on pricing page
 echo -n "Testing Stripe SDK loading... "
