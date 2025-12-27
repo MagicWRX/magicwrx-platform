@@ -50,7 +50,7 @@ export default function PortfolioTemplateDemo() {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Hero Section</h3>
             <div className="bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 rounded-lg p-8 text-center">
               <h2 className="text-3xl font-bold text-white mb-4">
-                Creative
+                Creative{' '}
                 <span className="block text-purple-300">Portfolio</span>
               </h2>
               <p className="text-gray-300 mb-6">
